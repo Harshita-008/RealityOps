@@ -1,0 +1,14 @@
+spec_version: 1
+name: realityops_arena
+description: OpenEnv benchmark for production incident response under uncertainty and business constraints
+type: space
+runtime: fastapi
+app: server.app:app
+entrypoint: server.app:app
+port: 7860
+
+tasks:
+  - false_alarm
+  - ambiguous_root
+  - revenue_tradeoff
+  - cascading_failure
