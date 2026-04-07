@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import random
 from copy import deepcopy
 from typing import Dict, Optional
 
@@ -24,12 +26,21 @@ class RealityOpsEnv:
             return requested  # type: ignore[return-value]
         return "ambiguous_root"
 
-    def reset(self, task_name: Optional[str] = None):
-        import random
+    def reset(self, task_name: Optional[str] = None, seed: Optional[int] = None):
         selected_task = self._selected_task(task_name)
         task_spec = deepcopy(TASK_SPECS[selected_task])
 
-        seed = random.randint(0, 10000)
+        if seed is None:
+            configured_seed = os.getenv("REALITYOPS_SEED")
+            if configured_seed is not None:
+                try:
+                    seed = int(configured_seed)
+                except ValueError:
+                    logger.warning("Ignoring invalid REALITYOPS_SEED=%s", configured_seed)
+
+        episode_seed = seed if seed is not None else random.randint(0, 10000)
+        rng = random.Random(episode_seed)
+
         self.state = {
             "task_name": selected_task,
             "task_spec": task_spec,
@@ -58,14 +69,14 @@ class RealityOpsEnv:
             "done": False,
             "revenue_loss": 0.0,
             "episode_score": 0.0,
-            "seed": seed,
+            "seed": episode_seed,
             "team_queries": 0,
             "belief_history": [default_beliefs(selected_task)],
-            "market_hours": random.choice([True, False]),  # Affects revenue impact
+            "market_hours": rng.choice([True, False]),  # Affects revenue impact
         }
 
-        obs = build_observation(self.state, seed)
-        logger.info(f"Episode reset for task: {selected_task}, seed: {seed}")
+        obs = build_observation(self.state, episode_seed)
+        logger.info(f"Episode reset for task: {selected_task}, seed: {episode_seed}")
         return Observation(**obs, step=0)
 
     def _reward_from_action(self, action: Action) -> Reward:

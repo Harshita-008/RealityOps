@@ -73,3 +73,23 @@ def test_heuristic_commit_fix_uses_fix_payload_when_confirmation_needed() -> Non
     action = _heuristic_action("revenue_tradeoff", obs, step=6, history=history, info={"requires_fix_confirmation": True})
     assert action["type"] == "commit_fix"
     assert action["payload"]["fix"] == "reroute_traffic"
+
+
+def test_heuristic_multi_incident_transitions_to_commit_fix() -> None:
+    obs = {
+        "logs": ["cross-az packet loss above threshold", "db pool exhausted for payments-writer"],
+        "metrics": {"latency": 420.0, "error_rate": 0.24},
+    }
+    history = [
+        {"type": "check_logs"},
+        {"type": "check_metrics"},
+        {"type": "probe"},
+        {"type": "update_belief"},
+        {"type": "update_belief"},
+        {"type": "update_belief"},
+        {"type": "safe_mitigation"},
+    ]
+
+    action = _heuristic_action("multi_incident", obs, step=8, history=history, info={"requires_fix_confirmation": True})
+    assert action["type"] == "commit_fix"
+    assert action["payload"]["fix"] in {"reroute_traffic", "increase_pool"}

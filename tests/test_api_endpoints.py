@@ -112,3 +112,16 @@ def test_quick_demo_has_monotonic_steps() -> None:
 def test_invalid_action_is_rejected() -> None:
     invalid = client.post("/step", json={"type": "definitely_not_valid"})
     assert invalid.status_code == 422
+
+
+def test_reset_accepts_seed_for_reproducibility() -> None:
+    first = client.post("/reset", json={"task": "ambiguous_root", "seed": 1234})
+    second = client.post("/reset", json={"task": "ambiguous_root", "seed": 1234})
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    obs1 = first.json()["observation"]
+    obs2 = second.json()["observation"]
+    assert obs1["logs"] == obs2["logs"]
+    assert obs1["metrics"] == obs2["metrics"]
+    assert obs1["market_hours"] == obs2["market_hours"]

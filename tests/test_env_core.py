@@ -124,3 +124,16 @@ def test_state_view_contains_structured_score_payload() -> None:
     assert "score" in view
     assert view["score"]["task"] == "false_alarm"
     assert isinstance(view["score"]["components"], dict)
+
+
+def test_reset_uses_env_seed_for_reproducibility(monkeypatch) -> None:
+    monkeypatch.setenv("REALITYOPS_SEED", "9001")
+
+    env = RealityOpsEnv()
+    obs1 = env.reset(task_name="ambiguous_root")
+    obs2 = env.reset(task_name="ambiguous_root")
+
+    assert obs1.logs == obs2.logs
+    assert obs1.metrics == obs2.metrics
+    assert obs1.market_hours == obs2.market_hours
+    assert env.state["seed"] == 9001

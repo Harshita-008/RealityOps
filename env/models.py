@@ -44,6 +44,7 @@ class Reward(BaseModel):
 
 class ResetRequest(BaseModel):
     task: Optional[TaskName] = None
+    seed: Optional[int] = None
 
 
 class ResetResponse(BaseModel):

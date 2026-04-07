@@ -341,7 +341,8 @@ def health():
 @app.post("/reset", response_model=ResetResponse)
 def reset(payload: Optional[ResetRequest] = None):
     selected_task = payload.task if payload else None
-    obs = env.reset(task_name=selected_task)
+    selected_seed = payload.seed if payload else None
+    obs = env.reset(task_name=selected_task, seed=selected_seed)
     return ResetResponse(observation=obs, done=False, task=env.state["task_name"])
 
 @app.post("/step", response_model=StepResponse)

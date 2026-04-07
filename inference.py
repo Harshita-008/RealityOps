@@ -185,6 +185,51 @@ def _heuristic_action(task: str, observation: Dict, step: int, history: List[Dic
             return {"type": "commit_fix", "payload": {"fix": _best_fix()}}
         return {"type": "wait"}
 
+    if task == "multi_incident":
+        if not _has_action("check_logs"):
+            return {"type": "check_logs"}
+        if not _has_action("check_metrics"):
+            return {"type": "check_metrics"}
+        if not _has_action("probe"):
+            return {"type": "probe"}
+
+        belief_updates = sum(1 for item in history if item.get("type") == "update_belief")
+        if belief_updates < 3:
+            if belief_updates == 0:
+                payload = {
+                    "db_overload": 0.44,
+                    "network_partition": 0.44,
+                    "cache_bug": 0.06,
+                    "auth_expiry": 0.06,
+                }
+            elif belief_updates == 1:
+                payload = {
+                    "db_overload": 0.50,
+                    "network_partition": 0.38,
+                    "cache_bug": 0.06,
+                    "auth_expiry": 0.06,
+                }
+            else:
+                payload = {
+                    "db_overload": 0.55,
+                    "network_partition": 0.35,
+                    "cache_bug": 0.05,
+                    "auth_expiry": 0.05,
+                }
+            return {"type": "update_belief", "payload": payload}
+
+        if not _has_action("safe_mitigation"):
+            return {"type": "safe_mitigation"}
+
+        primary_fix = "reroute_traffic" if ("packet loss" in logs_blob or latency > 360) else "increase_pool"
+        commit_count = sum(1 for item in history if item.get("type") == "commit_fix")
+        if commit_count == 0 or needs_confirmation:
+            return {"type": "commit_fix", "payload": {"fix": primary_fix}}
+        if commit_count == 1:
+            secondary_fix = "increase_pool" if primary_fix == "reroute_traffic" else "reroute_traffic"
+            return {"type": "commit_fix", "payload": {"fix": secondary_fix}}
+        return {"type": "wait"}
+
     if task == "security_breach":
         if not _has_action("check_logs"):
             return {"type": "check_logs"}
