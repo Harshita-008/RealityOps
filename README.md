@@ -174,6 +174,54 @@ Hard tasks also use confidence gates: a fix can remain provisional until evidenc
 
 This reward design supports partial progress and discourages destructive behavior.
 
+## Design Decisions That Matter
+
+1. Stateful core API, stateless demo path
+- `/reset`, `/step`, and `/state` share a single active environment instance so multi-step behavior is realistic and path-dependent.
+- `/quick/demo` intentionally runs in an isolated env instance so reviewers can always reproduce a known walkthrough without mutating live session state.
+
+2. Confidence gates are task-specific, not global
+- Hard tasks enforce different completion gates (`required_evidence`, `required_belief_updates`, and optional mitigation-before-fix).
+- This prevents one brittle policy from overfitting all tasks and creates meaningful differences between incident archetypes.
+
+3. Belief updates are first-class actions
+- The agent is rewarded for calibrated belief shaping, not just final fix selection.
+- This allows partial credit for disciplined diagnosis and discourages shortcut policies that jump directly to fixes.
+
+4. Anti-gaming is explicit in both reward and grader
+- Repetition spam, premature fixes, invalid fixes, and over-waiting are penalized.
+- The grader and dense reward both encode this, so exploit strategies lose score even when they occasionally hit a correct fix.
+
+5. Browser UX and evaluator UX are separated cleanly
+- Root Space UI supports manual interactive play.
+- API remains strict and validator-compatible for automated checks.
+
+## Agent Operating Strategy
+
+A strong policy should follow a disciplined incident loop instead of single-shot fixing.
+
+1. Triage phase (steps 1-2)
+- Call `check_metrics` and `check_logs` early.
+- Use `probe` when uncertainty remains between worlds with similar symptoms.
+
+2. Hypothesis phase (next step)
+- Call `update_belief` with a normalized distribution over candidate worlds.
+- Avoid degenerate beliefs (all mass on one world) until evidence supports it.
+
+3. Stabilization phase (hard tasks)
+- If mitigation gate exists, call `safe_mitigation` before final fix commitment.
+- This is critical for `revenue_tradeoff`, where mitigation timing is part of correctness.
+
+4. Fix phase
+- Use `commit_fix` only when evidence and belief-update gates are satisfied.
+- If `requires_fix_confirmation=true`, continue evidence/belief actions before retrying final confirmation.
+
+5. Exit discipline
+- On `false_alarm`, high-confidence no-incident paths should prefer `wait` over unnecessary fixes.
+- Avoid repeated same-action loops; they degrade anti-gaming components and overall score.
+
+In short: diagnose -> calibrate -> mitigate (if needed) -> fix -> confirm.
+
 ## Environment Variables (Submission Requirements)
 
 Define these before running inference:
